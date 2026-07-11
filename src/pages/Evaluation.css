@@ -1,0 +1,219 @@
+.evaluation-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+/* ── Header ── */
+.evaluation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.eval-header-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.eval-trophy-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(239,68,68,0.1));
+  border: 1px solid rgba(245,158,11,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--warning);
+  box-shadow: var(--glow-amber);
+  animation: float 4s ease-in-out infinite;
+}
+
+.evaluation-header h2 { font-size: 1.25rem; font-weight: 700; }
+
+.competition-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(239,68,68,0.1));
+  border: 1px solid rgba(245,158,11,0.35);
+  color: var(--warning);
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: var(--glow-amber);
+  animation: borderGlow 3s ease-in-out infinite;
+}
+
+/* ── Overall Score ── */
+.overall-score-section {
+  padding: var(--spacing-xl);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xl);
+}
+
+.gauge-wrapper {
+  position: relative;
+  width: 280px;
+  height: 165px;
+}
+
+.arc-gauge-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.gauge-center {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding-bottom: 10px;
+}
+
+.huge-score {
+  font-family: var(--font-display);
+  font-size: 3.5rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  background: var(--accent-gradient-tri);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+}
+
+.out-of {
+  font-size: 1rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.score-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.overall-meta {
+  display: flex;
+  gap: var(--spacing-2xl);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+  width: 100%;
+  justify-content: center;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.meta-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.meta-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+}
+
+/* ── Breakdown ── */
+.detailed-breakdown {}
+
+.detailed-breakdown h3 {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: var(--spacing-lg);
+}
+
+.breakdown-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+}
+
+.score-item {
+  padding: var(--spacing-md) var(--spacing-lg);
+  position: relative;
+  transition: all var(--transition-fast);
+}
+
+.score-item:hover {
+  transform: translateY(-2px);
+  border-color: rgba(59,130,246,0.2);
+}
+
+.score-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.score-item-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.score-icon { display: flex; align-items: center; }
+
+.score-item-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+  font-family: var(--font-display);
+}
+
+.score-bar-bg {
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.score-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.perfect-badge {
+  position: absolute;
+  top: var(--spacing-md);
+  right: var(--spacing-md);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--success);
+  background: rgba(16,185,129,0.1);
+  border: 1px solid rgba(16,185,129,0.2);
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
