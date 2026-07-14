@@ -195,11 +195,21 @@ An animated arc gauge SVG displays the overall AI evaluation score (98.2/100) wi
 
 ## Architecture
 
-Single-page React application with a feature-co-located structure. Each page owns its own component file and CSS file. Shared chrome (Layout, Sidebar, Topbar) lives in `components/`.
+AccessSphere AI is structured as a hybrid application: a high-fidelity React frontend SPA served by a Python 3.12+ FastAPI backend which hosts the grounded Gemini AI assistant services.
 
 ```text
 AccessSphere-AI/
-|-- src/
+|-- app/                         Python FastAPI Backend
+|   |-- __init__.py
+|   |-- main.py                  App routes, rate-limiter, static file routing
+|   |-- schemas.py               Pydantic validation schemas
+|   |-- assistant.py             Grounded Gemini Vision/Chat loop
+|   |-- offline.py               Deterministic fallback keyword engine
+|   |-- data.py                  Static dataset loader
+|   `-- tools.py                 Stadium status, route planner, service finder
+|-- data/
+|   `-- venues.json              FIFA 2026 16-venue static accessibility dataset
+|-- src/                         React Frontend SPA
 |   |-- App.tsx                  React Router routes (8 pages)
 |   |-- main.tsx                 React 19 entry point
 |   |-- index.css                Global design system (tokens, animations, glassmorphism)
@@ -216,23 +226,29 @@ AccessSphere-AI/
 |       |-- Vision.tsx/css       AI vision - obstacle detect, OCR/translate, scene describe
 |       |-- Profile.tsx/css      Accessibility needs declaration & management
 |       `-- Evaluation.tsx/css   Score dashboard - arc gauge, animated bars, evaluation map
+|-- tests/                       Python unit and API tests (pytest)
 |-- index.html                   App shell with favicon and viewport meta
-|-- vite.config.ts               Vite 8 + React plugin
+|-- vite.config.ts               Vite 8 + React plugin (with dev server API proxy)
+|-- pyproject.toml               Python toolchain configuration (ruff, mypy, radon, etc.)
 |-- tsconfig.app.json            TypeScript strict config
 |-- .oxlintrc.json               Oxlint rules (react + typescript + oxc plugins)
 |-- vitest.setup.ts              @testing-library/jest-dom setup
-`-- package.json                 Scripts: dev, build, lint, preview, test
+|-- package.json                 Scripts: dev, build, lint, preview, test
+`-- requirements.txt             Production Python packages
 ```
 
 ```mermaid
-flowchart LR
-    Fan["Fan with Accessibility Needs"] -->|visits| App["AccessSphere AI React SPA"]
-    App --> D["Dashboard\nMatchday Hub"]
-    App --> A["AI Assistant\nGemini Chat"]
-    App --> N["AR Navigation\nStep-free Routes"]
-    App --> L["Live Map\nCrowd Intelligence"]
-    App --> P["Planner\nJourney Builder"]
-    App --> V["Vision Scanner\nOCR + Translate"]
+flowchart TD
+    Fan["Fan with Accessibility Needs"] -->|interacts| App["AccessSphere React SPA"]
+    App -->|POST /api/chat| API["FastAPI (app/main.py)"]
+    API --> ASST["Assistant (app/assistant.py)"]
+    ASST -->|GEMINI_API_KEY set| GEM["Gemini 2.5 Flash\nManual tool loop"]
+    ASST -->|No key / Error| OFF["Offline Engine\nDeterministic keyword match"]
+    GEM --> TOOLS["Tools (app/tools.py)"]
+    OFF --> TOOLS
+    TOOLS --> DATA["Data helper (app/data.py)"]
+    DATA --> DB[("venues.json")]
+```
     App --> Pr["Profile\nNeeds Declaration"]
     App --> E["Evaluation\nScore Dashboard"]
     A -->|"Gemini 2.5 Flash"| AI["Google AI"]
@@ -259,19 +275,21 @@ flowchart LR
 | Layer | Technology | Version |
 |---|---|---|
 | **UI Framework** | React | 19.2 |
-| **Language** | TypeScript | 6.0 (strict) |
+| **Language** | TypeScript / Python | TS 6.0 / Python 3.12+ |
+| **Backend Framework** | FastAPI + Uvicorn | FastAPI >= 0.110 |
 | **Build Tool** | Vite | 8.1 |
 | **Routing** | React Router DOM | 7.18 |
 | **Icons** | Lucide React | 1.24 |
-| **Linting** | Oxlint | 1.71 (react + typescript + oxc plugins) |
-| **Testing** | Vitest + @testing-library/react | 4.1 + 16.3 |
-| **Test DOM** | jsdom | 29 |
-| **AI** | Google Gemini 2.5 Flash (Vision + Chat) | via API |
+| **JS Linting** | Oxlint | 1.71 (react + typescript + oxc plugins) |
+| **Python Linting** | Ruff + Mypy | Ruff (strict check), Mypy (--strict) |
+| **JS Testing** | Vitest + @testing-library/react | 4.1 + 16.3 |
+| **Python Testing** | Pytest + Coverage | Pytest >= 8.0, Coverage >= 7.4 |
+| **AI SDK** | Google GenAI SDK (`google-genai`) | >= 0.1.1 (Gemini 2.5 Flash) |
 | **Styling** | Vanilla CSS - glassmorphism design system | - |
 
 **Why Vanilla CSS?** Full control over the glassmorphism design language, custom keyframe animations, and WCAG-compliant colour tokens without a utility-class runtime or purge complexity.
 
-**Why Oxlint over ESLint?** Oxlint is 50-100x faster, written in Rust, and the `react + typescript + oxc` plugin set covers all critical rules including `react/rules-of-hooks` (error) and `react/only-export-components` (warn).
+**Why FastAPI and google-genai?** The FastAPI layer provides high-performance asynchronous request handling, atomic rate-limiting, and validation schemas, while cleanly isolating the Gemini AI function-calling loop.
 
 ---
 
@@ -279,63 +297,91 @@ flowchart LR
 
 ### Prerequisites
 
-- **Node.js** >= 22
-- A Google AI Studio API key (optional - the app runs fully in demo mode without one)
+- **Node.js** >= 22 (for frontend build)
+- **Python** >= 3.12 (for backend API)
+- A Google AI Studio API key (optional - the backend falls back to a deterministic offline keyword engine if no key is present)
 
 ### Install & Run
 
+#### 1. Setup Backend
 ```bash
-# 1. Clone the repository
+# Clone the repository
 git clone https://github.com/your-org/AccessSphere-AI.git
 cd AccessSphere-AI
 
-# 2. Install dependencies
-npm install
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
 
-# 3. (Optional) Configure Gemini API key for live AI features
-cp .env.example .env
-# Add: VITE_GEMINI_API_KEY=your-key-here
-# Get a free key at https://aistudio.google.com/
+# Install backend dependencies
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
-# 4. Start the dev server
-npm run dev
-# Opens at http://localhost:5173
+# Run the FastAPI server
+uvicorn app.main:app --reload --port 8000
 ```
 
-> Without a key the app boots in **demo mode** - all pages are fully functional with pre-written AI responses demonstrating the full user experience with zero credentials.
+#### 2. Setup Frontend (in another terminal)
+```bash
+# Install packages
+npm install
+
+# Start Vite dev server (requests to /api and /healthz are proxied to localhost:8000)
+npm run dev
+```
+
+> Without a `GEMINI_API_KEY` set in the backend environment, the assistant degrades gracefully to **offline mode** — using a local keyword matcher so the entire app works with zero credentials.
 
 ### Available Scripts
 
-| Script | Description |
+| Command | Description |
 |---|---|
-| `npm run dev` | Start Vite dev server with HMR |
+| `uvicorn app.main:app --reload` | Start FastAPI backend locally |
+| `npm run dev` | Start Vite dev server with proxy support |
 | `npm run build` | TypeScript compile + Vite production build |
-| `npm run preview` | Preview production build locally |
-| `npm run lint` | Oxlint with react + typescript + oxc rules |
-| `npm test` | Run Vitest test suite |
+| `pytest` | Run backend Pytest suite |
+| `npm test` | Run frontend Vitest suite |
+| `ruff check app tests` | Lint Python backend files |
+| `mypy app` | Strict type-check backend files |
 
 ---
 
-## Testing
+## Testing & Quality Gates
 
-The test suite is written with **Vitest** and **@testing-library/react**, with **jsdom** as the DOM environment and `@testing-library/jest-dom` for extended matchers.
+The project maintains comprehensive test coverage and lint checking across both frontend and backend codebases.
+
+### Backend Verification (Python)
 
 ```bash
-# Run all tests
-npm test
+# Run pytest suite
+pytest
 
-# Run with coverage report
-npm test -- --coverage
+# Check code coverage
+coverage run -m pytest
+coverage report -m
+
+# Lint check (ruff)
+ruff check app tests
+
+# Strict type checking (mypy)
+mypy app
+
+# Docstring coverage gate (interrogate)
+interrogate app
 ```
 
-**Test scope:**
+### Frontend Verification (JS/TS)
 
-- **Component tests** - `Sidebar.test.tsx` verifies navigation rendering and keyboard accessibility
-- **Page interaction tests** - chat send flow, mode switching in Vision Scanner, countdown rendering, score animation trigger
-- **Accessibility assertions** - landmark presence (`role="main"`, `role="navigation"`), ARIA roles, keyboard operability, focus management
-- **Hook tests** - `useCountdown` cleanup, `useCountUp` animation frame behavior
+```bash
+# Run Vitest test suite
+npm test
 
-The test setup (`vitest.setup.ts`) imports `@testing-library/jest-dom` globally, enabling matchers like `toBeInTheDocument`, `toHaveRole`, `toBeVisible`, `toHaveAccessibleName`.
+# Run Vitest with coverage report
+npm test -- --coverage
+
+# Run JS/TS Oxlint rules
+npm run lint
+```
 
 ---
 

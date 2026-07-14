@@ -24,7 +24,19 @@ const AI_RESPONSES = [
   'Your accessibility profile is set to Wheelchair + Mobility Assistance. I\'ve pre-reserved a priority elevator slot and notified stadium staff. Is there anything else you need?',
 ];
 
-let aiResponseIndex = 0;
+const getFallbackResponse = (query: string): string => {
+  const q = query.toLowerCase();
+  if (q.includes('restroom') || q.includes('toilet') || q.includes('bathroom') || q.includes('baño')) {
+    return AI_RESPONSES[1];
+  }
+  if (q.includes('shuttle') || q.includes('route') || q.includes('gate') || q.includes('transit') || q.includes('way') || q.includes('seat')) {
+    return AI_RESPONSES[0];
+  }
+  if (q.includes('need') || q.includes('profile') || q.includes('assist') || q.includes('help') || q.includes('emergency')) {
+    return AI_RESPONSES[2];
+  }
+  return 'I\'m here to help. You can ask me about accessible routes, restrooms, or transportation options at the stadium.';
+};
 
 import { useAccessibility } from '../context/AccessibilityContext';
 
@@ -112,46 +124,41 @@ export const Assistant: React.FC = () => {
   };
 
   const getGeminiResponse = async (userPrompt: string): Promise<string> => {
-    const apiKey = localApiKey || import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("No API key configured");
-    }
+    const needs: ('mobility' | 'vision' | 'hearing' | 'sensory')[] = [];
+    if (settings.highContrast) needs.push('vision');
+    if (settings.voiceOutput) needs.push('hearing');
+    if (settings.screenReaderMode) needs.push('sensory');
+    // If no other need is checked, default to mobility
+    if (needs.length === 0) needs.push('mobility');
 
-    const systemPrompt = `You are AccessSphere AI, an accessibility-first assistant for the FIFA World Cup 2026 at SoFi Stadium.
-Your primary role is to assist fans with mobility, vision, hearing, or sensory needs.
-Keep your answers brief, friendly, highly structured, and screen-reader safe.
-Do not use complicated formatting. Use plain language.
-Refer to specific accessibility structures:
-- Gate C has elevator and ramp access.
-- Restrooms are fully accessible with grab bars.
-- Smart Shuttles connect Downtown Hub to East Transit Center.
-- Sensory rooms are located on Level 2.
-Current user query: "${userPrompt}"`;
+    // map messages (excluding the initial welcome message) to history schema
+    const historyPayload = messages.slice(1).map(msg => ({
+      role: msg.sender === 'ai' ? 'assistant' as const : 'user' as const,
+      text: msg.text
+    }));
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: userPrompt,
+        profile: {
+          language: 'en',
+          needs: needs,
+          venue_id: 'los-angeles'
         },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: systemPrompt }] }]
-        })
-      }
-    );
+        history: historyPayload
+      })
+    });
 
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!candidateText) {
-      throw new Error("Empty candidate response");
-    }
-
-    return candidateText.trim();
+    return data.reply;
   };
 
   const handleSend = async (text: string = input) => {
@@ -184,14 +191,13 @@ Current user query: "${userPrompt}"`;
       console.warn("Gemini API call failed, falling back to mock response.", e);
       setTimeout(() => {
         setIsTyping(false);
-        const fallbackText = AI_RESPONSES[aiResponseIndex % AI_RESPONSES.length];
+        const fallbackText = getFallbackResponse(text);
         const aiMsg: Message = {
           id: (Date.now() + 1).toString(),
           sender: 'ai',
           text: fallbackText,
           timestamp: new Date(),
         };
-        aiResponseIndex++;
         setMessages(prev => [...prev, aiMsg]);
         if (settings.voiceOutput) {
           speakText(fallbackText);

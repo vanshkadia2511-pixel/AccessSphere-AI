@@ -1,0 +1,105 @@
+{
+  "tournament": {
+    "accessibility_tickets": {
+      "types": ["Wheelchair User", "Easy Access", "Sensory Room"],
+      "companion_tickets": 1
+    },
+    "openingMatch": {
+      "venueId": "mexico-city",
+      "date": "2026-06-11"
+    },
+    "final": {
+      "venueId": "new-york-new-jersey",
+      "date": "2026-07-19"
+    }
+  },
+  "venues": [
+    {
+      "id": "los-angeles",
+      "name": "SoFi Stadium",
+      "commercialName": "SoFi Stadium",
+      "fifaName": "Los Angeles Stadium",
+      "city": "Los Angeles",
+      "country": "USA",
+      "capacity": 70240,
+      "accessibility": {
+        "verified": true,
+        "gates": [
+          {"name": "Gate A", "accessible": true, "notes": "Step-free entry with priority elevators."},
+          {"name": "Gate B", "accessible": false, "notes": "Stairs only."},
+          {"name": "Gate C", "accessible": true, "notes": "Accessible drop-off nearby and ramps."},
+          {"name": "Gate D", "accessible": false, "notes": "Escalator access only."}
+        ],
+        "elevators": "Priority elevators are located near Entry Gates A, C, and E.",
+        "accessible_seating": "Wheelchair spaces are distributed across all levels, primarily sections 102, 220, and 305.",
+        "accessible_restrooms": "Gender-neutral accessible toilets with grab bars are adjacent to every section.",
+        "sensory_room": "The Sensory Room is located on Level 2, Suite 2A, equipped with noise-canceling headphones.",
+        "quiet_route_hint": "Gate C is recommended as the quietest and widest entrance.",
+        "vision_support": "Tactile pathways and Braille signage from the transit hub to the seats.",
+        "assistive_listening": "FM assistive listening receivers are available at Guest Services on Level 1."
+      },
+      "services": {
+        "water": "Drinking fountains and bottle refill stations are at Sections 105, 122, and 204.",
+        "first_aid": "First Aid stations are open on Level 1 near Section 112 and Level 3 near Section 318.",
+        "nursing_room": "Dedicated nursing suite with changing tables is located near Section 130."
+      }
+    },
+    {
+      "id": "new-york-new-jersey",
+      "name": "MetLife Stadium",
+      "commercialName": "MetLife Stadium",
+      "fifaName": "New York New Jersey Stadium",
+      "city": "East Rutherford",
+      "country": "USA",
+      "capacity": 82500,
+      "accessibility": {
+        "verified": true,
+        "gates": [
+          {"name": "Verizon Gate", "accessible": true, "notes": "Elevators to all levels available inside."},
+          {"name": "Pepsi Gate", "accessible": true, "notes": "Main entrance with step-free pathways."},
+          {"name": "Bud Light Gate", "accessible": false, "notes": "Stairs and revolving doors."}
+        ],
+        "elevators": "Public elevators are accessible near the Verizon, Pepsi, and MetLife gates.",
+        "accessible_seating": "Dedicated platforms with Companion seats are located in Sections 109, 142, and 224.",
+        "accessible_restrooms": "All public restrooms are accessible. Family restrooms are available on every concourse.",
+        "sensory_room": "Sensory Lounge is located on the Plaza level near Section 117.",
+        "quiet_route_hint": "Pepsi Gate is generally less crowded and offers a wider, step-free access path.",
+        "vision_support": "Audio descriptive commentary devices can be checked out at Guest Services.",
+        "assistive_listening": "Infrared assistive listening systems are available in the stadium bowl."
+      },
+      "services": {
+        "water": "Refillable water stations are located near all major concession stands.",
+        "first_aid": "First Aid locations are near Section 103, 201, and 315.",
+        "nursing_room": "Nursing mother rooms are situated on the Plaza level near the Pepsi Gate."
+      }
+    },
+    {
+      "id": "mexico-city",
+      "name": "Estadio Azteca",
+      "commercialName": "Estadio Azteca",
+      "fifaName": "Mexico City Stadium",
+      "city": "Mexico City",
+      "country": "Mexico",
+      "capacity": 83264,
+      "accessibility": {
+        "verified": false,
+        "gates": [
+          {"name": "Gate 1", "accessible": true, "notes": "Wheelchair-accessible ramp access."},
+          {"name": "Gate 2", "accessible": false, "notes": "Turnstile only."}
+        ],
+        "elevators": "Elevators are available for VIP and accessible ticket holders inside Gate 1.",
+        "accessible_seating": "Designated spaces are located in the lower ring and special platforms.",
+        "accessible_restrooms": "Accessible restrooms are available near primary seating areas.",
+        "sensory_room": "No permanent sensory room available; sensory kits can be requested.",
+        "quiet_route_hint": "Gate 1 offers the most direct step-free path.",
+        "vision_support": "Braille signage in main hallways.",
+        "assistive_listening": "Not confirmed."
+      },
+      "services": {
+        "water": "Concession refill services available.",
+        "first_aid": "First Aid stations near Section 105 and 202.",
+        "nursing_room": "Family room available near the main entrance lobby."
+      }
+    }
+  ]
+}
