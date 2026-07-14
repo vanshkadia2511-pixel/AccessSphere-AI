@@ -17,6 +17,9 @@ Serves the accessible chat UI (static/) and a small JSON API. Security posture:
 import json
 import logging
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 import threading
 import time
 from collections.abc import Awaitable, Callable, Iterator
