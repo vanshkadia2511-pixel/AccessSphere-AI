@@ -9,8 +9,22 @@
 [![Gemini](https://img.shields.io/badge/Powered%20by-Gemini%20Vision%20AI-orange.svg)](#tech-stack)
 
 > **Challenge 4 - Smart Stadiums & Tournament Operations - FIFA World Cup 2026**
+>
+> *"Build a GenAI-enabled solution that enhances stadium operations and the overall tournament experience for fans, organizers, volunteers, or venue staff. The solution must leverage Generative AI to improve navigation, crowd management, accessibility, transportation, sustainability, multilingual assistance, operational intelligence, or real-time decision support during the FIFA World Cup 2026."*
 
-AccessSphere AI is an **accessibility-first, AI-powered matchday companion** built for fans with accessibility needs attending FIFA World Cup 2026 matches. A fan declares their language and access needs once, then the entire app adapts - from personalized routing to real-time crowd intelligence to live sign translation.
+AccessSphere AI is an **accessibility-first, GenAI-powered matchday companion** built for fans with accessibility needs attending FIFA World Cup 2026 matches. A fan declares their language and access needs once, then the entire app adapts - from personalized routing to real-time crowd intelligence to live sign translation.
+
+## How Generative AI Powers the Solution
+
+Generative AI is the core engine of AccessSphere AI, not a bolt-on chatbot. Google **Gemini 2.5 Flash** drives the product through a **grounded function-calling loop** implemented in `app/assistant.py`:
+
+1. **Grounded tool use.** Gemini never free-associates venue facts. It is given four typed function declarations (`get_venue_info`, `find_accessible_services`, `get_live_status`, `plan_visit`) and is instructed to answer venue questions *only* from their results. The manual tool loop (capped at 8 iterations, thought signatures preserved, parallel calls supported) executes each requested tool against the authoritative 16-venue dataset and feeds the results back — so a hallucinated gate number is structurally impossible.
+2. **Real-time decision support.** `get_live_status` streams the simulated operations feed (per-gate congestion, elevator outages) into the model's context, letting Gemini generate an in-the-moment recommendation: *"South Gate is quietest right now and has a working elevator — head there."*
+3. **Multilingual generation.** Gemini replies natively in the fan's language (50+ supported); the deterministic offline engine mirrors this with per-language intent tables and templates for English, Spanish, French, and Arabic — including localized safety declines.
+4. **Personalized planning.** `plan_visit` composes the fan's declared needs (mobility / vision / hearing / sensory) into the prompt context, so the generated arrival plan adapts per person, not per venue.
+5. **Streaming UX.** `/api/chat/stream` emits NDJSON deltas from `generate_content_stream`, so long generated answers render token-by-token for the fan.
+6. **Safety and prompt-injection resistance.** A frozen, byte-stable system instruction (which also enables Gemini implicit prefix caching) declares that user turns cannot override rules, reveal the prompt, or redefine the assistant's role; blocked or empty responses fall back to a localized decline.
+7. **Graceful degradation.** With no API key — or on any auth / rate-limit / server / network failure — the app switches to a deterministic offline engine with the same tools and the same UX, so the solution always answers, even during a stadium network brownout.
 
 **Six core superpowers in one app:**
 
@@ -348,7 +362,14 @@ npm run dev
 
 ## Testing & Quality Gates
 
-The project maintains comprehensive test coverage and lint checking across both frontend and backend codebases.
+The project maintains comprehensive test coverage and lint checking across both frontend and backend codebases — **86 automated tests** in total.
+
+### What is covered
+
+| Suite | Tests | Coverage focus |
+|---|---|---|
+| **Backend (pytest)** | 50 | All API endpoints (success + 404/422/429 paths), security headers on every response type, token-bucket rate-limiter unit behavior (capacity, refill, per-key isolation, pruning), path-traversal rejection, Pydantic schema caps, streaming NDJSON frame contract, offline engine intents in 2+ languages, assistant fallback + decline localization, tool dispatcher error paths |
+| **Frontend (Vitest + Testing Library)** | 36 | Every page component (Dashboard, Assistant, Navigation, LiveMap, Planner, Vision, Profile, Evaluation) plus Sidebar — rendering, roles/labels for accessibility, user interactions (sustainability points logging/claiming, route-option switching, vision mode switching, read-aloud speech synthesis, form input) |
 
 ### Backend Verification (Python)
 
@@ -387,7 +408,15 @@ npm run lint
 
 ## Security
 
-- **No secrets committed.** API keys are read from `VITE_GEMINI_*` environment variables only; `.env` is git-ignored and `.env.example` holds placeholder values.
+See [SECURITY.md](SECURITY.md) for the full threat model, controls checklist, and vulnerability reporting process.
+
+- **No secrets committed.** The Gemini key is read from server-side environment variables only; `.env` is git-ignored and `.env.example` holds placeholder values. `/healthz` reports only live/offline mode — never the key.
+- **Strict security headers on every response.** FastAPI middleware sets CSP (`default-src 'self'`, `frame-ancestors 'none'`, `object-src 'none'`), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: no-referrer`, HSTS, COOP/CORP `same-origin`, and a restrictive `Permissions-Policy`. The same headers are mirrored in `vercel.json` for statically hosted responses. All verified by automated tests.
+- **Per-IP rate limiting.** Token-bucket limiter (20 req/min) on both chat endpoints returns 429 on burst; bounded in-memory by default, atomic Redis Lua script across replicas when `REDIS_URL` is set.
+- **Path traversal protection.** The SPA static fallback resolves every candidate path and rejects anything (encoded `../`, absolute paths, symlinks) that escapes the built `dist/` directory — covered by dedicated traversal tests.
+- **Server-side input validation.** Pydantic caps everything before handler code runs: message ≤ 2000 chars, history ≤ 20 turns, needs enum, 2-letter language codes, `extra="forbid"` on the request body → 422.
+- **Prompt-injection resistance.** The frozen system instruction declares user turns cannot override rules, reveal the prompt, or redefine the assistant's role; blocked responses fall back to localized declines.
+- **Stateless privacy.** Chat content is never persisted and message bodies are never logged; history round-trips through the client. No CORS middleware, no wildcard origins.
 - **XSS-safe rendering.** All dynamic content - user input, AI responses, vision scan output - is rendered via React's virtual DOM, never via `dangerouslySetInnerHTML`.
 - **Strict TypeScript.** `tsconfig.app.json` enables strict mode; all `any` usage rejected; Oxlint enforces `react/rules-of-hooks` (error). Unknown types caught at compile time.
 - **Content Security Policy.** The production build ships no inline scripts and no `eval`; all assets are content-hashed by Vite.
@@ -441,18 +470,34 @@ Built to **WCAG 2.1 AA** standards. The product practises what it preaches - an 
 
 ## Problem Statement Alignment
 
-Every requirement below has a working, demonstrable page in the live app.
+The challenge asks for a **GenAI-enabled solution that enhances stadium operations and the tournament experience** across eight verticals, for four stakeholder groups. AccessSphere AI covers **all eight verticals** with working, demonstrable flows, each backed by Generative AI where it adds value.
 
-| # | Requirement | How AccessSphere AI delivers it | Route |
-|---|---|---|---|
-| R1 | **Navigation** | AR indoor turn-by-turn with step-free routes, elevator flagged per step, minimap + next-steps panel | `/navigation` |
-| R2 | **Crowd management** | Live heatmap with per-zone density (comfortable / busy / surge), surge banner, reroute CTA | `/live` |
-| R3 | **Accessibility** | Profile drives every screen; accessible routes, elevator/gate status, sensory-aware suggestions; WCAG 2.1 AA throughout | `/profile` + whole app |
-| R4 | **Transportation** | Step-by-step journey builder - Smart Shuttle, delay alerts, Reserved Spot badge, weather rerouting | `/planner` |
-| R5 | **Sustainability** | Low Carbon badge on shuttle leg; route optimizer surfaces low-emission transit options | `/planner` |
-| R6 | **Multilingual assistance** | AI Assistant supports 50+ languages; Vision Scanner translates signs in real time with read-aloud | `/assistant`, `/vision` |
-| R7 | **Operational intelligence** | Elevator & gate status board (OK / Maintenance / Offline), parking fill-rate, crowd peak prediction | `/live` |
-| R8 | **Real-time decision support** | Crowd surge fires accessible alternate route; gate change notice on Dashboard; AI recommends quietest gate | `/`, `/live` |
+### The eight verticals — with GenAI evidence
+
+| # | Requirement | How AccessSphere AI delivers it | Where GenAI is involved | Route |
+|---|---|---|---|---|
+| R1 | **Navigation** | AR indoor turn-by-turn with step-free routes, elevator flagged per step, minimap + next-steps panel | Gemini `plan_visit` tool generates need-aware arrival plans; assistant answers "how do I get to Block 102" grounded in gate data | `/navigation`, `/assistant` |
+| R2 | **Crowd management** | Live heatmap with per-zone density (comfortable / busy / surge), surge banner, reroute CTA | Gemini `get_live_status` tool feeds per-gate congestion into generated recommendations ("quietest accessible gate right now") | `/live`, `/assistant` |
+| R3 | **Accessibility** | Profile drives every screen; accessible routes, elevator/gate status, sensory-aware suggestions; WCAG 2.1 AA throughout | Gemini `find_accessible_services` tool grounds every accessibility answer (wheelchair, sensory rooms, assistive listening, braille) in verified venue data | `/profile` + whole app |
+| R4 | **Transportation** | Three accessible route options (ADA Smart Shuttle, Metro light rail, accessible rideshare) with step-by-step itineraries, delay alerts, weather rerouting | Assistant plans hotel-to-seat journeys via `plan_visit`, adapting transit steps to declared needs and language | `/planner`, `/assistant` |
+| R5 | **Sustainability** | Green Fan Rewards eco-points tracker (log transit / cup return / recycling, claim rewards); per-route carbon-savings labels (82-95% emissions saved) | Assistant surfaces low-carbon transit options in generated journey plans | `/` (dashboard), `/planner` |
+| R6 | **Multilingual assistance** | AI Assistant answers in the fan's language (50+ via Gemini, 4 offline: en/es/fr/ar); Vision Scanner translates signage (ES/FR/AR/PT/DE) with read-aloud | Native multilingual generation is a core Gemini capability; localized safety declines are generated per profile language | `/assistant`, `/vision` |
+| R7 | **Operational intelligence** | Elevator & gate status board (OK / Maintenance / Offline), parking fill-rate, crowd peak prediction, incident reporting form | Live-ops feed is exposed to Gemini as a tool, turning raw status into prioritized, human-readable staff/fan guidance | `/live` |
+| R8 | **Real-time decision support** | Crowd surge fires accessible alternate route; gate change notice on Dashboard; AI recommends quietest gate; SOS assistance flow | Gemini synthesizes live congestion + accessibility profile + venue data into a single "do this now" recommendation | `/`, `/live`, `/assistant` |
+
+### The four stakeholder groups
+
+| Stakeholder | How AccessSphere AI serves them |
+|---|---|
+| **Fans** | The primary persona: accessibility-first matchday companion — personalized routing, multilingual AI answers, sign translation, journey planning, eco-rewards |
+| **Organizers** | Operational intelligence dashboard (`/live`): crowd fill-rate prediction, surge detection, parking utilization — the same simulated feed an operations API would provide |
+| **Volunteers** | The grounded assistant is a force multiplier: volunteers answer any accessibility question in any language accurately, without memorizing 16 venues' layouts |
+| **Venue staff** | Elevator/gate status board, incident reporting from the Live Map, and SOS assistance requests routed from the Dashboard give staff actionable, need-aware alerts |
+
+### Stadium operations & tournament experience
+
+- **Operations**: rate-limited, stateless, horizontally scalable API (Redis-shared limits across replicas) designed for matchday burst traffic; deterministic offline engine keeps kiosks answering during network brownouts.
+- **Experience**: one profile declaration adapts every screen; the fan never re-explains their needs — the definition of an enhanced tournament experience for the 1.5%+ of attendees with declared accessibility needs at a 104-match tournament.
 
 ---
 
@@ -461,11 +506,11 @@ Every requirement below has a working, demonstrable page in the live app.
 | Criterion | Evidence in this project |
 |---|---|
 | **Code Quality** | Strict TypeScript 6.0 (`tsconfig strict`) - Oxlint with react + typescript + oxc plugins (zero warnings) - Feature-co-located CSS (no style leakage) - Single-responsibility page components - Custom hooks (`useCountdown`, `useCountUp`) extracted from render - Typed prop interfaces on every component - Consistent naming conventions throughout |
-| **Security** | No secrets committed - XSS-safe React virtual DOM rendering - Strict TypeScript (all `any` rejected) - `npm audit` hygiene - Oxlint `react/rules-of-hooks` error rule - Input validation before any API call - CSP-safe build (no inline scripts, no eval) |
+| **Security** | Documented threat model ([SECURITY.md](SECURITY.md)) - Strict security headers on every response (CSP, HSTS, COOP/CORP, X-Frame-Options DENY) verified by tests - Per-IP token-bucket rate limiting (Redis-shared across replicas) - Path-traversal-hardened static fallback - Server-side Pydantic validation caps (422 before handlers) - Prompt-injection-resistant frozen system instruction - Stateless/no-PII design - No secrets committed - XSS-safe React virtual DOM rendering |
 | **Efficiency** | Vite production build with content-hashing + tree-shaking - Pure CSS `@keyframes` animations (GPU-composited, no JS paint) - `requestAnimationFrame` with proper cleanup - SVG arc gauge via CSS `stroke-dashoffset` transition (zero repaints after mount) - Lucide React tree-shaking - Staggered animations via `animation-delay` (no JS timers per item) |
-| **Testing** | Vitest + @testing-library/react + jsdom - `@testing-library/jest-dom` extended matchers - Component tests for navigation, interaction flows, and accessibility assertions (roles, labels, keyboard operability) |
+| **Testing** | 86 automated tests (50 pytest + 36 Vitest) - every page component and every API endpoint covered - security regression tests (headers, rate limit 429, path traversal, schema caps) - rate-limiter unit tests (refill, pruning, key isolation) - streaming contract tests - offline engine multilingual intent tests - interaction tests (points logging, route switching, speech synthesis) |
 | **Accessibility** | WCAG 2.1 AA: semantic landmarks, skip link, all controls labelled, keyboard-operable, `aria-live` regions, colour-independent status indicators - `prefers-reduced-motion` support - RTL text support - `<noscript>` fallback - Oxlint `jsx-a11y` rules enforced - Accessibility score **99/100** on the in-app Evaluation page |
-| **Problem Statement Alignment** | All 8 FIFA WC 2026 challenge verticals (R1-R8) are demonstrable flows on named routes: navigation, crowd management, accessibility, transport, sustainability, multilingual, operational intelligence, real-time decisions |
+| **Problem Statement Alignment** | GenAI (Gemini 2.5 Flash grounded function-calling loop) is the core engine, not a bolt-on - all 8 challenge verticals (R1-R8) are demonstrable flows on named routes with documented GenAI involvement per vertical - all 4 stakeholder groups (fans, organizers, volunteers, venue staff) explicitly served - graceful offline degradation keeps the solution operational during matchday network stress |
 
 ---
 

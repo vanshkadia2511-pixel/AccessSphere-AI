@@ -218,3 +218,191 @@ def test_offline_no_venue_asks_to_pick():
     reply = offline.offline_answer("wheelchair access", {"language": "en"})
     assert isinstance(reply, str)
     assert len(reply) > 0
+
+
+# ── Static fallback: path traversal hardening ─────────────────────────────────
+
+def test_fallback_rejects_dotdot_traversal():
+    """A ../ traversal attempt must never serve a file outside dist/."""
+    response = client.get("/../app/main.py")
+    assert response.status_code != 200 or "GEMINI" not in response.text
+
+def test_fallback_rejects_encoded_traversal():
+    """URL-encoded traversal (%2e%2e%2f) must not escape the static dir."""
+    response = client.get("/%2e%2e%2f%2e%2e%2fapp%2fmain.py")
+    assert response.status_code != 200 or "RATE_LIMIT_PER_MIN" not in response.text
+
+def test_fallback_rejects_env_probe():
+    """Common secret probes must never return file contents."""
+    for probe in ("/.env", "/..%2f.env", "/....//....//etc/passwd"):
+        response = client.get(probe)
+        assert "GEMINI_API_KEY=" not in response.text
+        assert "root:" not in response.text
+
+def test_fallback_api_prefix_is_404():
+    response = client.get("/api/nonexistent")
+    assert response.status_code == 404
+
+
+# ── Request schema caps (input validation) ─────────────────────────────────────
+
+def _chat_payload(**overrides):
+    payload = {
+        "message": "hi",
+        "profile": {"language": "en", "needs": [], "venue_id": "los-angeles"},
+        "history": [],
+    }
+    payload.update(overrides)
+    return payload
+
+def test_chat_message_too_long_is_422():
+    rate_limiter.reset()
+    response = client.post("/api/chat", json=_chat_payload(message="x" * 2001))
+    assert response.status_code == 422
+
+def test_chat_empty_message_is_422():
+    rate_limiter.reset()
+    response = client.post("/api/chat", json=_chat_payload(message="   "))
+    assert response.status_code == 422
+
+def test_chat_extra_fields_forbidden():
+    rate_limiter.reset()
+    response = client.post("/api/chat", json=_chat_payload(evil="payload"))
+    assert response.status_code == 422
+
+def test_chat_history_over_cap_is_422():
+    rate_limiter.reset()
+    long_history = [{"role": "user", "text": "hi"}] * 21
+    response = client.post("/api/chat", json=_chat_payload(history=long_history))
+    assert response.status_code == 422
+
+def test_chat_invalid_need_is_422():
+    rate_limiter.reset()
+    payload = _chat_payload()
+    payload["profile"]["needs"] = ["telepathy"]
+    response = client.post("/api/chat", json=payload)
+    assert response.status_code == 422
+
+def test_chat_invalid_language_is_422():
+    rate_limiter.reset()
+    payload = _chat_payload()
+    payload["profile"]["language"] = "english"
+    response = client.post("/api/chat", json=payload)
+    assert response.status_code == 422
+
+def test_search_query_over_cap_is_422():
+    response = client.get("/api/venues/search", params={"q": "x" * 65})
+    assert response.status_code == 422
+
+
+# ── Token bucket limiter unit behaviour ────────────────────────────────────────
+
+def test_token_bucket_allows_up_to_capacity():
+    from app.main import TokenBucketLimiter
+    limiter = TokenBucketLimiter(capacity=3, refill_seconds=60.0)
+    assert limiter.allow("ip") is True
+    assert limiter.allow("ip") is True
+    assert limiter.allow("ip") is True
+    assert limiter.allow("ip") is False
+
+def test_token_bucket_keys_are_independent():
+    from app.main import TokenBucketLimiter
+    limiter = TokenBucketLimiter(capacity=1, refill_seconds=60.0)
+    assert limiter.allow("a") is True
+    assert limiter.allow("a") is False
+    assert limiter.allow("b") is True
+
+def test_token_bucket_refills_over_time(monkeypatch):
+    import time as _time
+    from app.main import TokenBucketLimiter
+    limiter = TokenBucketLimiter(capacity=1, refill_seconds=1.0)
+    base = _time.monotonic()
+    monkeypatch.setattr("app.main.time.monotonic", lambda: base)
+    assert limiter.allow("ip") is True
+    assert limiter.allow("ip") is False
+    monkeypatch.setattr("app.main.time.monotonic", lambda: base + 2.0)
+    assert limiter.allow("ip") is True
+
+def test_token_bucket_prunes_idle_buckets():
+    from app.main import TokenBucketLimiter
+    limiter = TokenBucketLimiter(capacity=5, refill_seconds=0.001, prune_threshold=4)
+    for i in range(4):
+        limiter.allow(f"client-{i}")
+    import time as _time
+    _time.sleep(0.01)  # let every bucket refill fully
+    limiter.allow("new-client")  # triggers prune of the refilled buckets
+    assert len(limiter._buckets) <= 4
+
+def test_token_bucket_reset_clears_state():
+    from app.main import TokenBucketLimiter
+    limiter = TokenBucketLimiter(capacity=1, refill_seconds=60.0)
+    assert limiter.allow("ip") is True
+    limiter.reset()
+    assert limiter.allow("ip") is True
+
+
+# ── Streaming endpoint parity ──────────────────────────────────────────────────
+
+def test_chat_stream_rate_limited_returns_429():
+    """The stream endpoint must share the same per-IP rate limit as /api/chat."""
+    rate_limiter.reset()
+    for _ in range(20):
+        rate_limiter.allow("testclient")
+    response = client.post("/api/chat/stream", json=_chat_payload())
+    assert response.status_code == 429
+    rate_limiter.reset()
+
+def test_chat_stream_delta_frames_carry_text():
+    rate_limiter.reset()
+    response = client.post("/api/chat/stream", json=_chat_payload(message="wheelchair access"))
+    assert response.status_code == 200
+    frames = [json.loads(line) for line in response.text.strip().split("\n")]
+    deltas = [f for f in frames if f["type"] == "delta"]
+    assert len(deltas) >= 1
+    assert all(isinstance(f["text"], str) and f["text"] for f in deltas)
+
+def test_chat_stream_meta_carries_venue_id():
+    rate_limiter.reset()
+    response = client.post("/api/chat/stream", json=_chat_payload())
+    meta = json.loads(response.text.strip().split("\n")[0])
+    assert meta["venue_id"] == "los-angeles"
+
+def test_chat_stream_validation_rejected_before_streaming():
+    rate_limiter.reset()
+    response = client.post("/api/chat/stream", json=_chat_payload(message=""))
+    assert response.status_code == 422
+
+
+# ── Assistant fallback + decline localization ─────────────────────────────────
+
+def test_assistant_offline_when_no_key(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    reply = assistant.answer("hello", {"language": "en", "venue_id": "los-angeles"})
+    assert reply.mode == "offline"
+    assert reply.text
+
+def test_assistant_decline_language_resolution():
+    assert assistant._decline_language({"language": "es"}) == "es"
+    assert assistant._decline_language({"language": "AR"}) == "ar"
+    assert assistant._decline_language({"language": "xx"}) == "en"
+    assert assistant._decline_language({}) == "en"
+
+def test_assistant_preamble_includes_context():
+    text = assistant._preamble(
+        "where is gate c", {"venue_id": "los-angeles", "needs": ["mobility"], "language": "en"}
+    )
+    assert "venue_id: los-angeles" in text
+    assert "needs: mobility" in text
+    assert "where is gate c" in text
+
+def test_assistant_preamble_prompts_for_missing_venue():
+    text = assistant._preamble("hi", {})
+    assert "none selected" in text
+
+def test_security_headers_present_on_404():
+    """Even error responses must carry the strict security headers."""
+    response = client.get("/api/venues/unknown-venue-id")
+    assert response.status_code == 404
+    assert response.headers.get("X-Content-Type-Options") == "nosniff"
+    assert "default-src 'self'" in response.headers.get("Content-Security-Policy", "")

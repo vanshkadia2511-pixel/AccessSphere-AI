@@ -352,15 +352,32 @@ def chat_stream(
 if (_STATIC_DIR / "assets").exists():
     app.mount("/assets", StaticFiles(directory=str(_STATIC_DIR / "assets")), name="assets")
 
+def _resolve_static_file(path: str) -> Path | None:
+    """Resolve ``path`` inside the static dir, rejecting traversal escapes.
+
+    The candidate is fully resolved (symlinks and ``..`` collapsed) and must
+    remain within ``_STATIC_DIR``; anything that escapes — encoded traversal
+    sequences, absolute paths, symlink tricks — returns None and is treated as
+    a plain SPA route rather than a file on disk.
+    """
+    try:
+        candidate = (_STATIC_DIR / path).resolve()
+    except (OSError, ValueError):  # unresolvable path (e.g. NUL bytes)
+        return None
+    if not candidate.is_relative_to(_STATIC_DIR.resolve()):
+        return None
+    return candidate if candidate.is_file() else None
+
+
 # Fallback route for all SPA paths handled by React Router (e.g. /assistant, /live, etc.)
 @app.get("/{path:path}", include_in_schema=False)
 def fallback(path: str) -> FileResponse:
     """Fallback handler that serves static files if they exist, or index.html for SPA routes."""
     if path.startswith("api/") or path.startswith("healthz"):
         raise HTTPException(status_code=404, detail="API endpoint not found")
-    
-    local_file = _STATIC_DIR / path
-    if local_file.is_file():
+
+    local_file = _resolve_static_file(path)
+    if local_file is not None:
         return FileResponse(str(local_file))
         
     index_html = _STATIC_DIR / "index.html"
