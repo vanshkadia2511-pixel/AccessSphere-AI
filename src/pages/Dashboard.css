@@ -739,3 +739,78 @@
   background: rgba(139, 92, 246, 0.12);
   box-shadow: 0 0 8px rgba(139, 92, 246, 0.15);
 }
+
+/* ── SOS Emergency Panel ── */
+.sos-panel {
+  border: 2px solid rgba(239, 68, 68, 0.6);
+  background: rgba(239, 68, 68, 0.08);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  box-shadow: 0 0 32px rgba(239, 68, 68, 0.2);
+}
+
+.sos-panel-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.sos-icon-pulse {
+  color: var(--error);
+  flex-shrink: 0;
+  animation: sos-pulse 1s ease-in-out infinite;
+}
+
+@keyframes sos-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.2); }
+}
+
+.sos-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--error);
+  margin: 0 0 4px;
+}
+
+.sos-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.sos-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: rgba(0,0,0,0.2);
+  border-radius: var(--radius-md);
+}
+
+.sos-status-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.sos-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--error);
+  flex-shrink: 0;
+  animation: sos-pulse 1.2s ease-in-out infinite;
+}
+
+.sos-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+

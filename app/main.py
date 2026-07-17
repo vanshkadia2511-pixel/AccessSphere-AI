@@ -63,6 +63,10 @@ _SECURITY_HEADERS = {
     "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
     # Only honoured over HTTPS (ignored on plain HTTP), so safe in local dev.
     "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
+    # Prevents renderer process sharing across origins (Spectre-class attacks).
+    "Cross-Origin-Opener-Policy": "same-origin",
+    # Prevents cross-origin reads of app responses.
+    "Cross-Origin-Resource-Policy": "same-origin",
 }
 
 

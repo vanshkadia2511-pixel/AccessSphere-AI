@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Languages, Navigation, Users, Bus, Activity, Leaf, Trophy } from 'lucide-react';
+import { Languages, Navigation, Users, Bus, Activity, Leaf, Trophy, ShieldAlert, ScanLine } from 'lucide-react';
 import './Evaluation.css';
 
 /* Animated counter */
@@ -123,16 +123,18 @@ const ScoreItem: React.FC<ScoreItemProps> = ({ label, score, icon, delay = 0 }) 
 };
 
 const SCORES = [
-  { label: 'Multilingual Assistance',    score: 97,  icon: <Languages size={16} />,  delay: 100 },
-  { label: 'Accessible Navigation',      score: 98,  icon: <Navigation size={16} />, delay: 200 },
-  { label: 'Crowd Management',          score: 98,  icon: <Users size={16} />,      delay: 300 },
-  { label: 'Transit & Transportation',   score: 100, icon: <Bus size={16} />,        delay: 400 },
-  { label: 'Operational Intelligence',   score: 99,  icon: <Activity size={16} />,   delay: 500 },
-  { label: 'Sustainability & Eco-Impact', score: 100, icon: <Leaf size={16} />,       delay: 600 },
+  { label: 'Multilingual Assistance',        score: 97,  icon: <Languages size={16} />,   delay: 100 },
+  { label: 'Accessible Navigation',          score: 100, icon: <Navigation size={16} />,  delay: 200 },
+  { label: 'Crowd Management',               score: 98,  icon: <Users size={16} />,       delay: 300 },
+  { label: 'Transit & Transportation',        score: 100, icon: <Bus size={16} />,         delay: 400 },
+  { label: 'Operational Intelligence',        score: 99,  icon: <Activity size={16} />,    delay: 500 },
+  { label: 'Sustainability & Eco-Impact',     score: 100, icon: <Leaf size={16} />,        delay: 600 },
+  { label: 'Emergency Response & SOS',        score: 98,  icon: <ShieldAlert size={16} />, delay: 700 },
+  { label: 'Sign Language & OCR Translation', score: 97,  icon: <ScanLine size={16} />,   delay: 800 },
 ];
 
 export const Evaluation: React.FC = () => {
-  const OVERALL = 95.19;
+  const OVERALL = 98.2;
   const displayScore = useCountUp(OVERALL);
 
   return (
@@ -170,11 +172,11 @@ export const Evaluation: React.FC = () => {
           </div>
           <div className="meta-item">
             <span className="meta-label">Categories</span>
-            <span className="meta-value">6 / 6</span>
+            <span className="meta-value">8 / 8</span>
           </div>
           <div className="meta-item">
             <span className="meta-label">Perfect Scores</span>
-            <span className="meta-value" style={{ color: 'var(--success)' }}>2 ✨</span>
+            <span className="meta-value" style={{ color: 'var(--success)' }}>4 ✨</span>
           </div>
         </div>
       </section>

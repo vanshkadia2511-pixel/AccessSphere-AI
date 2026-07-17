@@ -184,6 +184,19 @@ function useCountdown(targetSeconds: number) {
 export const Dashboard: React.FC = () => {
   const { h, m, s } = useCountdown(4 * 3600 + 20 * 60 + 15);
   const [alertDismissed, setAlertDismissed] = useState(false);
+  const [sosActive, setSosActive] = useState(false);
+  const [sosCountdown, setSosCountdown] = useState(0);
+
+  const handleSOS = () => {
+    setSosActive(true);
+    setSosCountdown(30);
+    const timer = setInterval(() => {
+      setSosCountdown(prev => {
+        if (prev <= 1) { clearInterval(timer); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   return (
     <div className="dashboard animate-fade-in">
@@ -252,6 +265,50 @@ export const Dashboard: React.FC = () => {
           <div className="match-venue">SoFi Stadium · Los Angeles</div>
         </div>
       </header>
+
+      {/* ── SOS Emergency Panel ── */}
+      {sosActive && (
+        <section
+          role="alert"
+          aria-live="assertive"
+          aria-atomic="true"
+          className="sos-panel glass-panel animate-slide-up"
+        >
+          <div className="sos-panel-header">
+            <ShieldAlert size={20} className="sos-icon-pulse" />
+            <div>
+              <h2 className="sos-title">🆘 Emergency Assistance Requested</h2>
+              <p className="sos-subtitle">Stadium staff have been notified. Help is on the way.</p>
+            </div>
+          </div>
+          <div className="sos-details">
+            <div className="sos-status-row">
+              <span className="sos-status-dot" />
+              <span>Rerouting to nearest accessible assistance point — <strong>Gate C Staff Station</strong></span>
+            </div>
+            <div className="sos-status-row">
+              <span className="sos-status-dot" />
+              <span>Estimated staff arrival: <strong>{sosCountdown > 0 ? `${sosCountdown}s` : 'Arrived'}</strong></span>
+            </div>
+            <div className="sos-status-row">
+              <span className="sos-status-dot" />
+              <span>Your seat location transmitted: <strong>Block 102 · Row C · Wheelchair Bay</strong></span>
+            </div>
+          </div>
+          <div className="sos-actions">
+            <button className="btn-emergency" aria-label="Call stadium medical team">
+              📞 Call Medical Team
+            </button>
+            <button
+              className="btn-dismiss"
+              onClick={() => setSosActive(false)}
+              aria-label="Dismiss SOS emergency panel"
+            >
+              Dismiss
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* ── Alerts ── */}
       {!alertDismissed && (
@@ -357,7 +414,11 @@ export const Dashboard: React.FC = () => {
               <span>Live Routing</span>
               <span className="action-sub">2 min ETA</span>
             </button>
-            <button className="action-btn glass-panel">
+            <button
+              className="action-btn glass-panel"
+              onClick={handleSOS}
+              aria-label="Activate emergency SOS assistance"
+            >
               <div className="action-icon-ring red">
                 <AlertCircle className="action-icon" />
               </div>
