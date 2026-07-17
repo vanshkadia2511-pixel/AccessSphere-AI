@@ -31,9 +31,11 @@ const AccessibilityToggle: React.FC<ToggleProps> = ({ label, description, icon, 
 
 export const Profile: React.FC = () => {
   const { settings, updateSettings } = useAccessibility();
-  
+
   const [mobility, setMobility] = useState(true);
   const [saved, setSaved] = useState(false);
+  const [language, setLanguage] = useState(settings.language || 'en');
+  const [venueId, setVenueId] = useState(settings.venueId || 'los-angeles');
 
   const handleToggleVision = () => {
     const nextVal = !settings.highContrast;
@@ -52,6 +54,7 @@ export const Profile: React.FC = () => {
   };
 
   const handleSave = () => {
+    updateSettings({ language, venueId });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };
@@ -90,6 +93,45 @@ export const Profile: React.FC = () => {
               <div className="field">
                 <label>Seat</label>
                 <input type="text" defaultValue="Block 102 · Row C · Wheelchair Bay" className="input-field" readOnly />
+              </div>
+              <div className="field">
+                <label htmlFor="language-select">Language</label>
+                <select
+                  id="language-select"
+                  className="input-field"
+                  value={language}
+                  onChange={e => setLanguage(e.target.value)}
+                >
+                  <option value="en">English</option>
+                  <option value="es">Español</option>
+                  <option value="fr">Français</option>
+                  <option value="ar">العربية</option>
+                </select>
+              </div>
+              <div className="field">
+                <label htmlFor="venue-select">Home Venue</label>
+                <select
+                  id="venue-select"
+                  className="input-field"
+                  value={venueId}
+                  onChange={e => setVenueId(e.target.value)}
+                >
+                  <option value="los-angeles">SoFi Stadium — Los Angeles</option>
+                  <option value="new-york-new-jersey">MetLife Stadium — New York/NJ</option>
+                  <option value="dallas">AT&amp;T Stadium — Dallas</option>
+                  <option value="san-francisco">Levi's Stadium — San Francisco</option>
+                  <option value="miami">Hard Rock Stadium — Miami</option>
+                  <option value="seattle">Lumen Field — Seattle</option>
+                  <option value="boston">Gillette Stadium — Boston</option>
+                  <option value="philadelphia">Lincoln Financial — Philadelphia</option>
+                  <option value="kansas-city">Arrowhead Stadium — Kansas City</option>
+                  <option value="atlanta">Mercedes-Benz Stadium — Atlanta</option>
+                  <option value="guadalajara">Estadio Akron — Guadalajara</option>
+                  <option value="mexico-city">Estadio Azteca — Mexico City</option>
+                  <option value="monterrey">Estadio BBVA — Monterrey</option>
+                  <option value="toronto">BMO Field — Toronto</option>
+                  <option value="vancouver">BC Place — Vancouver</option>
+                </select>
               </div>
             </div>
           </div>

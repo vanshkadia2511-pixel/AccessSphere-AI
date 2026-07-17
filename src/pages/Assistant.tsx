@@ -145,9 +145,9 @@ export const Assistant: React.FC = () => {
       body: JSON.stringify({
         message: userPrompt,
         profile: {
-          language: 'en',
+          language: settings.language || 'en',
           needs: needs,
-          venue_id: 'los-angeles'
+          venue_id: settings.venueId || 'los-angeles'
         },
         history: historyPayload
       })

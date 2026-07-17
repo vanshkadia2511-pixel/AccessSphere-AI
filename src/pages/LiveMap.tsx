@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Activity, Users, ArrowUpRight, ParkingSquare, DoorOpen, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Activity, Users, ArrowUpRight, ParkingSquare, DoorOpen, AlertTriangle, TrendingUp, Bot, Loader } from 'lucide-react';
 import './LiveMap.css';
 
 interface StatusItemProps { label: string; status: 'operational' | 'maintenance' | 'offline'; }
@@ -49,14 +49,45 @@ export const LiveMap: React.FC = () => {
   const [newFacilityName, setNewFacilityName] = useState('');
   const [newFacilityStatus, setNewFacilityStatus] = useState<'operational' | 'maintenance' | 'offline'>('operational');
 
-  const handleAddIncident = (e: React.FormEvent) => {
+  // AI triage state
+  const [aiTriage, setAiTriage] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const handleAddIncident = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFacilityName.trim()) return;
+
+    // Update facility list immediately
+    const name = newFacilityName.trim();
+    const status = newFacilityStatus;
     setFacilityAlerts(prev => [
-      { label: newFacilityName.trim(), status: newFacilityStatus },
+      { label: name, status },
       ...prev
     ]);
     setNewFacilityName('');
+
+    // Call AI for operational triage
+    setAiLoading(true);
+    setAiTriage(null);
+    try {
+      const statusLabel = status === 'offline' ? 'is OFFLINE' : status === 'maintenance' ? 'is under MAINTENANCE' : 'is now OPERATIONAL';
+      const prompt = `VOLUNTEER INCIDENT REPORT: Facility "${name}" ${statusLabel}. As an operations AI for FIFA World Cup 2026, provide a brief triage: 1) Immediate action for venue staff (1 sentence). 2) Alternate accessible route recommendation if applicable (1 sentence). 3) Priority level (Low/Medium/High/Critical).`;
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: prompt,
+          profile: { language: 'en', needs: ['mobility'], venue_id: 'los-angeles' },
+          history: []
+        })
+      });
+      const data = await res.json();
+      setAiTriage(data.reply || 'AI triage unavailable — contact operations desk.');
+    } catch {
+      setAiTriage('Unable to reach AI. Contact the operations desk directly.');
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const getZoneClass = (val: number) => {
@@ -233,33 +264,54 @@ export const LiveMap: React.FC = () => {
             </ul>
           </div>
 
-          {/* Incident Reporter Form (Volunteer Portal) */}
           <div className="status-card glass-panel animate-scale-up stagger-3">
             <div className="card-header">
               <AlertTriangle size={15} className="card-icon text-red" />
               <h3>Volunteer Alert Center</h3>
+              <span className="vol-badge">AI-Powered Triage</span>
             </div>
             <form onSubmit={handleAddIncident} className="incident-form">
               <input
                 type="text"
-                placeholder="e.g. Concourse B Ramp"
+                placeholder="e.g. Concourse B Ramp — Elevator Offline"
                 value={newFacilityName}
                 onChange={e => setNewFacilityName(e.target.value)}
                 className="incident-input"
+                aria-label="Incident description"
               />
               <div className="incident-select-row">
                 <select
                   value={newFacilityStatus}
                   onChange={e => setNewFacilityStatus(e.target.value as any)}
                   className="incident-select"
+                  aria-label="Incident status"
                 >
                   <option value="operational">Operational (OK)</option>
                   <option value="maintenance">Maintenance</option>
                   <option value="offline">Offline</option>
                 </select>
-                <button type="submit" className="btn-incident-submit">Report</button>
+                <button type="submit" className="btn-incident-submit" disabled={aiLoading}>
+                  {aiLoading ? <Loader size={13} className="spin" /> : 'Report'}
+                </button>
               </div>
             </form>
+
+            {/* AI Triage Response */}
+            {aiLoading && (
+              <div className="ai-triage-loading">
+                <Bot size={14} className="text-accent" />
+                <span>Gemini AI generating triage...</span>
+              </div>
+            )}
+            {aiTriage && !aiLoading && (
+              <div className="ai-triage-panel" role="status" aria-live="polite">
+                <div className="ai-triage-header">
+                  <Bot size={14} className="text-accent" />
+                  <span className="ai-triage-title">AI Operations Triage</span>
+                </div>
+                <p className="ai-triage-text">{aiTriage}</p>
+              </div>
+            )}
           </div>
 
           {/* Parking */}

@@ -42,4 +42,11 @@ describe('Vision Page', () => {
     expect(speak).toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
+
+  it('renders upload button when in OCR mode', () => {
+    render(<Vision />);
+    fireEvent.click(screen.getByRole('button', { name: /Read Signs/i }));
+    expect(screen.getByText(/Upload Sign Photo/i)).toBeInTheDocument();
+  });
 });
+

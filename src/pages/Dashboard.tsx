@@ -208,7 +208,7 @@ export const Dashboard: React.FC = () => {
         </div>
         <div className="stat-chip success">
           <Zap size={13} />
-          <span>Accessibility Score: 99.1</span>
+          <span>Accessibility Score: 98.2</span>
         </div>
         <div className="stat-chip warning">
           <Users size={13} />

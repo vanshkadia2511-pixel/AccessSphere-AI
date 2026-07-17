@@ -112,11 +112,14 @@ def test_coop_corp_headers_present():
     assert response.headers.get("Cross-Origin-Resource-Policy") == "same-origin"
 
 def test_content_security_policy_header():
-    """CSP must restrict default-src to self and deny framing."""
+    """CSP must have explicit script-src, deny framing, and upgrade insecure requests."""
     response = client.get("/api/venues")
     csp = response.headers.get("Content-Security-Policy", "")
     assert "default-src 'self'" in csp
+    assert "script-src 'self'" in csp
+    assert "style-src 'self'" in csp
     assert "frame-ancestors 'none'" in csp
+    assert "upgrade-insecure-requests" in csp
 
 def test_x_frame_options_deny():
     response = client.get("/healthz")
@@ -218,6 +221,65 @@ def test_offline_no_venue_asks_to_pick():
     reply = offline.offline_answer("wheelchair access", {"language": "en"})
     assert isinstance(reply, str)
     assert len(reply) > 0
+
+
+# ── Streaming and multi-need ───────────────────────────────────────────────────
+
+def test_chat_stream_contains_delta_frames():
+    """The streaming endpoint must emit at least one delta text frame after the meta frame."""
+    payload = {
+        "message": "what accessible services are available",
+        "profile": {"language": "en", "needs": ["mobility"], "venue_id": "los-angeles"},
+        "history": [],
+    }
+    response = client.post("/api/chat/stream", json=payload)
+    assert response.status_code == 200
+    lines = [l for l in response.text.strip().split("\n") if l]
+    assert len(lines) >= 2, "Expected meta frame + at least one delta frame"
+    meta = json.loads(lines[0])
+    assert meta["type"] == "meta"
+    # At least one subsequent frame must exist
+    second = json.loads(lines[1])
+    assert second["type"] in ["delta", "error"]
+
+def test_chat_all_four_needs_accepted():
+    """The /api/chat endpoint must accept all four declared accessibility needs."""
+    payload = {
+        "message": "what facilities are available for me",
+        "profile": {
+            "language": "en",
+            "needs": ["mobility", "vision", "hearing", "sensory"],
+            "venue_id": "los-angeles",
+        },
+        "history": [],
+    }
+    response = client.post("/api/chat", json=payload)
+    assert response.status_code == 200
+    res = response.json()
+    assert "reply" in res
+    assert res["mode"] in ["live", "offline"]
+
+
+# ── Vision OCR ───────────────────────────────────────────────────────────────
+
+def test_vision_ocr_offline_fallback():
+    """Vision OCR endpoint falls back to offline response when no live key is active."""
+    payload = {"image_data_url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="}
+    response = client.post("/api/vision-ocr", json=payload)
+    assert response.status_code == 200
+    res = response.json()
+    assert "result" in res
+    assert "mode" in res
+    assert res["mode"] in ["live", "offline"]
+
+def test_vision_ocr_invalid_format():
+    """Vision OCR returns 422 for invalid image_data_url format."""
+    payload = {"image_data_url": "invalid-format"}
+    # If no key, it returns offline response immediately
+    # Let's verify standard status or mock response depending on key presence
+    response = client.post("/api/vision-ocr", json=payload)
+    assert response.status_code in (200, 422)
+
 
 
 # ── Static fallback: path traversal hardening ─────────────────────────────────

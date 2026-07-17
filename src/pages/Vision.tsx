@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Camera, ScanLine, Type, Maximize, AlertTriangle, Volume2, Zap } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Camera, ScanLine, Type, Maximize, AlertTriangle, Volume2, Zap, Upload, Bot } from 'lucide-react';
 import './Vision.css';
 
 type VisionMode = 'obstacle' | 'ocr' | 'scene';
@@ -22,6 +22,10 @@ export const Vision: React.FC = () => {
   const [activeMode, setActiveMode] = useState<VisionMode>('obstacle');
   const [scanning, setScanning] = useState(true);
   const [selectedSign, setSelectedSign] = useState(0);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [aiResult, setAiResult] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const sign = SIGN_SAMPLES[selectedSign];
 
@@ -33,6 +37,33 @@ export const Vision: React.FC = () => {
       utterance.pitch = 1.0;
       window.speechSynthesis.speak(utterance);
     }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setUploadedImage(dataUrl);
+      setAiResult(null);
+      setAiLoading(true);
+      try {
+        // Send to backend vision endpoint
+        const res = await fetch('/api/vision-ocr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image_data_url: dataUrl })
+        });
+        const data = await res.json();
+        setAiResult(data.result || 'No text detected in image.');
+      } catch {
+        setAiResult('Gemini Vision unavailable — using offline samples below.');
+      } finally {
+        setAiLoading(false);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -88,9 +119,52 @@ export const Vision: React.FC = () => {
             <div className="overlay ocr-overlay">
               <div className="bounding-box text-target animate-scale-up" />
 
-              {/* Sign Selector */}
+              {/* Live Upload Path */}
+              <div className="upload-bar glass-panel animate-slide-up">
+                <label className="upload-label" htmlFor="sign-upload">
+                  <Upload size={13} />
+                  Upload Sign Photo for Gemini Vision AI
+                </label>
+                <input
+                  id="sign-upload"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="upload-input"
+                  onChange={handleImageUpload}
+                  aria-label="Upload a sign photo for AI translation"
+                />
+              </div>
+
+              {/* AI live result */}
+              {aiLoading && (
+                <div className="ai-vision-loading glass-panel animate-slide-up">
+                  <Bot size={14} className="text-accent" />
+                  <span>Gemini Vision analyzing image...</span>
+                </div>
+              )}
+              {aiResult && !aiLoading && (
+                <div className="ai-vision-result glass-panel animate-slide-up" role="status" aria-live="polite">
+                  {uploadedImage && (
+                    <img src={uploadedImage} alt="Uploaded sign" className="uploaded-thumb" />
+                  )}
+                  <div className="ai-vision-result-header">
+                    <Bot size={13} className="text-accent" />
+                    <span className="ai-triage-title">Gemini Vision Result</span>
+                  </div>
+                  <p className="ai-triage-text">{aiResult}</p>
+                  <button
+                    className="read-aloud-btn"
+                    onClick={() => speakTranslation(aiResult!)}
+                  >
+                    <Volume2 size={13} /> Read Aloud
+                  </button>
+                </div>
+              )}
+
+              {/* Sign Selector (sample fallback) */}
               <div className="sign-selector-bar glass-panel animate-slide-up">
-                <label className="sign-selector-label">Select Stadium Sign:</label>
+                <label className="sign-selector-label">Sample Stadium Signs:</label>
                 <div className="sign-chips">
                   {SIGN_SAMPLES.map((s, i) => (
                     <button

@@ -33,4 +33,10 @@ describe('LiveMap Page', () => {
     fireEvent.change(inputs[0], { target: { value: 'Test facility' } });
     expect(inputs[0]).toHaveValue('Test facility');
   });
+
+  it('renders the AI triage badge', () => {
+    render(<LiveMap />);
+    expect(screen.getByText(/AI-Powered Triage/i)).toBeInTheDocument();
+  });
 });
+

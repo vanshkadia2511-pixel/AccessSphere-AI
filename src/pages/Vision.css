@@ -554,3 +554,73 @@
   border-radius: var(--radius-sm);
   border-left: 2px solid var(--accent-tertiary);
 }
+
+/* ── Vision Upload Bar ── */
+.upload-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-sm);
+  cursor: pointer;
+}
+
+.upload-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  cursor: pointer;
+  letter-spacing: 0.02em;
+}
+
+.upload-input {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+/* ── AI Vision Loading ── */
+.ai-vision-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  animation: pulse-text 1.2s ease-in-out infinite;
+}
+
+/* ── AI Vision Result Panel ── */
+.ai-vision-result {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-sm);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  background: rgba(99, 102, 241, 0.07);
+}
+
+.ai-vision-result-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.uploaded-thumb {
+  width: 100%;
+  max-height: 100px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-sm);
+  opacity: 0.85;
+}
+

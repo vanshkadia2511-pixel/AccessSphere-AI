@@ -26,6 +26,7 @@ from collections.abc import Awaitable, Callable, Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 
+import pydantic
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -54,8 +55,10 @@ _BUCKET_PRUNE_THRESHOLD = 1024
 
 _SECURITY_HEADERS = {
     "Content-Security-Policy": (
-        "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; "
-        "object-src 'none'; img-src 'self' data:; form-action 'self'"
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+        "base-uri 'self'; frame-ancestors 'none'; "
+        "object-src 'none'; img-src 'self' data:; form-action 'self'; "
+        "upgrade-insecure-requests"
     ),
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
@@ -351,6 +354,67 @@ def chat_stream(
 # Serve static files from the dist/assets folder
 if (_STATIC_DIR / "assets").exists():
     app.mount("/assets", StaticFiles(directory=str(_STATIC_DIR / "assets")), name="assets")
+
+
+# ── Vision OCR Endpoint ────────────────────────────────────────────────────────
+
+class VisionOCRRequest(pydantic.BaseModel):
+    image_data_url: str  # data:image/<mime>;base64,<data>
+
+class VisionOCRResponse(pydantic.BaseModel):
+    result: str
+    mode: str  # "live" | "offline"
+
+
+@app.post("/api/vision-ocr", response_model=VisionOCRResponse)
+async def vision_ocr(body: VisionOCRRequest) -> VisionOCRResponse:
+    """Translate / describe a stadium sign image using Gemini Vision.
+
+    Accepts a data URL (base64-encoded image).  When a Gemini key is present the
+    image is sent to the model with an accessibility-focused prompt; when no key
+    is configured a friendly offline message is returned so the frontend still
+    receives a 200 response.
+    """
+    if not assistant.api_key_configured():
+        return VisionOCRResponse(
+            result=(
+                "Gemini Vision is in offline mode (no API key configured). "
+                "Upload a photo to see AI sign translation when the key is set. "
+                "Use the sample signs below for a demonstration."
+            ),
+            mode="offline",
+        )
+
+    # Parse data URL: "data:<mime>;base64,<payload>"
+    try:
+        header, b64data = body.image_data_url.split(",", 1)
+        mime_type = header.split(":")[1].split(";")[0]
+        import base64
+        image_bytes = base64.b64decode(b64data)
+    except Exception:
+        raise HTTPException(status_code=422, detail="Invalid image_data_url format.")
+
+    try:
+        import google.genai.types as gtypes
+        client = assistant._get_client()
+        response = client.models.generate_content(
+            model=assistant.MODEL,
+            contents=[
+                gtypes.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                "You are an accessibility assistant at a FIFA World Cup 2026 stadium. "
+                "Read all text visible in this image, translate it to English if it is "
+                "in another language, and add a brief accessibility note (e.g. ramp access, "
+                "elevator, sensory zone). Be concise — 2-4 sentences maximum."
+            ],
+        )
+        result_text = response.text or "No text detected in the image."
+        return VisionOCRResponse(result=result_text, mode="live")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Vision OCR failed: %s", exc)
+        return VisionOCRResponse(
+            result="Vision analysis failed. Please try again or use the sample signs below.",
+            mode="offline",
+        )
 
 def _resolve_static_file(path: str) -> Path | None:
     """Resolve ``path`` inside the static dir, rejecting traversal escapes.
