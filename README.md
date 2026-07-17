@@ -152,6 +152,7 @@ A stadium heatmap showing per-zone crowd density (North Gate 85%, South Gate 32%
 - Stadium heatmap grid with four directional zones and central pitch
 - Surge banner with `AlertTriangle` icon and reroute CTA
 - Intelligence sidebar with crowd prediction, elevator status list, parking zones
+- Volunteer Alert Center: Incident reporter form wired to Gemini AI `/api/chat` for real-time triage (priority level, staff directives, alternate routes) with a status announcement panel.
 
 ### Transportation & Planner (`/planner`) - Accessible Journey Builder
 
@@ -171,7 +172,7 @@ Camera viewfinder with corner bracket UI, animated scanner line, HUD overlays (R
 | Mode | What it does |
 |---|---|
 | **Obstacles** | Bounding boxes with hazard labels ("Wet Floor - 3m"), clear path confirmation, 97.3% confidence badge |
-| **Read Signs (OCR)** | Detects and translates text in real time (e.g. "Banos Accesibles -> Accessible Restrooms") with a Read Aloud button |
+| **Read Signs (OCR)** | Detects and translates text in real time (e.g. "Banos Accesibles -> Accessible Restrooms") with a Read Aloud button. Also supports a sign photo upload path calling the backend `/api/vision-ocr` endpoint powered by Gemini Vision AI |
 | **Scene Description** | Audio-describes surroundings ("East Concourse, food stand 5m left, accessible seating ahead, ~12 people nearby, path clear") |
 
 **Key components:**
@@ -179,12 +180,13 @@ Camera viewfinder with corner bracket UI, animated scanner line, HUD overlays (R
 - Four CSS corner brackets (`.corner-tl/tr/bl/br`) simulating a viewfinder
 - Animated scanner line (`scanner-${activeMode}`) with CSS keyframe
 - Translation card with ES -> EN language tags and Read Aloud button
+- Sign photo upload button and Gemini Vision result panel with dedicated voice output
 - Audio description card with `Volume2` icon and dual pulse rings
 - Shutter button with pulsing rings when `scanning` is active
 
 ### Accessibility Profile (`/profile`) - Needs Declaration Hub
 
-Fan sets and updates their accessibility requirements once. Every subsequent screen and AI answer automatically adapts to the declared profile - mobility, low-vision, hearing, sensory, or any combination.
+Fan sets and updates their accessibility requirements once. Rehydrated on mount and saved to `localStorage` to ensure preferences persist across page reloads. The form includes language selection (English, Spanish, French, Arabic) and all 15 FIFA host venue selections, which dynamically adapt the AI assistant prompts and live view responses.
 
 ### Evaluation Score (`/score`) - Transparent Quality Dashboard
 
@@ -325,7 +327,7 @@ cd AccessSphere-AI
 
 # Create and activate virtual environment
 python -m venv .venv
-source .venv/bin/activate      # Windows: .venv\Scripts\activate
+.venv\Scripts\activate
 
 # Install backend dependencies
 pip install -r requirements.txt
