@@ -49,7 +49,7 @@ export const Assistant: React.FC = () => {
   const [apiError, setApiError] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -58,8 +58,7 @@ export const Assistant: React.FC = () => {
   // Speech Recognition Setup
   useEffect(() => {
     const SpeechRecognitionCtor =
-      (window as Window & { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition ||
-      (window as Window & { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognitionCtor) return;
 
@@ -68,7 +67,7 @@ export const Assistant: React.FC = () => {
     rec.interimResults = false;
     rec.lang = settings.language === 'ar' ? 'ar-SA' : settings.language === 'es' ? 'es-MX' : settings.language === 'fr' ? 'fr-FR' : 'en-US';
 
-    rec.onresult = (event: SpeechRecognitionEvent) => {
+    rec.onresult = (event: any) => {
       const text = event.results[0][0].transcript;
       setInput(text);
       setMicActive(false);
