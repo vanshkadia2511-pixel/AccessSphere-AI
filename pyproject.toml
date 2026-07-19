@@ -1,28 +1,49 @@
 [project]
 name = "accesssphere-ai"
-version = "0.1.0"
+version = "1.0.0"
+description = "Accessibility-first GenAI stadium copilot for FIFA World Cup 2026."
+license = { text = "MIT" }
+requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.110.0",
     "uvicorn>=0.28.0",
     "pydantic>=2.6.0",
     "google-genai>=0.1.1",
     "redis>=5.0.0",
-    "python-dotenv>=1.0.0"
+    "python-dotenv>=1.0.0",
 ]
 
+# ── Ruff (lint + import sort) ─────────────────────────────────────────────────
 [tool.ruff]
 line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "PL", "BLE", "S"]
-ignore = []
+# Full ruleset: error, warning, flake8, isort, naming, upgrade, pylint, bugbear, security.
+select = ["E", "F", "W", "I", "N", "UP", "PL", "BLE", "S", "B", "C4", "SIM", "RET", "ANN"]
+ignore = [
+    "ANN101",  # missing type annotation for 'self'
+    "ANN102",  # missing type annotation for 'cls'
+    "ANN401",  # allow Any when explicitly needed
+    "S311",    # pseudo-random generator is intentional for simulation seeding
+    "PLW0603", # global statement is intentional for lazy singletons
+    "BLE001",  # broad exception is intentional for graceful degradation
+    "PLC0415", # import inside function is intentional for optional deps
+]
+fixable = ["I", "UP", "F401"]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "ANN", "PLR2004"]  # allow assert, no annotations in tests, magic values
+
+# ── Mypy (strict type checking) ──────────────────────────────────────────────
 [tool.mypy]
 python_version = "3.12"
 strict = true
 ignore_missing_imports = true
+warn_unreachable = true
+warn_unused_ignores = true
 
+# ── Interrogate (docstring coverage) ─────────────────────────────────────────
 [tool.interrogate]
 ignore-init-method = true
 ignore-init-module = true
@@ -30,17 +51,25 @@ ignore-magic = true
 ignore-semiprivate = true
 ignore-private = true
 ignore-property-decorators = true
-fail-under = 90
+fail-under = 95
 exclude = ["setup.py", "docs", "tests", "venv", ".venv"]
 verbose = 1
 quiet = false
 color = true
 
+# ── Coverage ─────────────────────────────────────────────────────────────────
 [tool.coverage.run]
 branch = true
 source = ["app"]
+omit = ["app/__init__.py"]
 
 [tool.coverage.report]
 show_missing = true
-skip_covered = true
+skip_covered = false
 fail_under = 90
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]

@@ -1,8 +1,9 @@
 import json
-import pytest
+
 from fastapi.testclient import TestClient
-from app.main import app, rate_limiter, _SECURITY_HEADERS
-from app import data, tools, assistant, offline
+
+from app import assistant, data, offline, tools
+from app.main import _SECURITY_HEADERS, app, rate_limiter
 
 client = TestClient(app)
 
@@ -27,7 +28,7 @@ def test_get_venue():
     assert response.status_code == 200
     res = response.json()
     assert res["name"] == "SoFi Stadium"
-    
+
     # 404 path
     response = client.get("/api/venues/invalid-id")
     assert response.status_code == 404
@@ -234,7 +235,7 @@ def test_chat_stream_contains_delta_frames():
     }
     response = client.post("/api/chat/stream", json=payload)
     assert response.status_code == 200
-    lines = [l for l in response.text.strip().split("\n") if l]
+    lines = [ln for ln in response.text.strip().split("\n") if ln]
     assert len(lines) >= 2, "Expected meta frame + at least one delta frame"
     meta = json.loads(lines[0])
     assert meta["type"] == "meta"
@@ -264,7 +265,12 @@ def test_chat_all_four_needs_accepted():
 
 def test_vision_ocr_offline_fallback():
     """Vision OCR endpoint falls back to offline response when no live key is active."""
-    payload = {"image_data_url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="}
+    payload = {
+        "image_data_url": (
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ"
+            "AAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+        )
+    }
     response = client.post("/api/vision-ocr", json=payload)
     assert response.status_code == 200
     res = response.json()
@@ -376,6 +382,7 @@ def test_token_bucket_keys_are_independent():
 
 def test_token_bucket_refills_over_time(monkeypatch):
     import time as _time
+
     from app.main import TokenBucketLimiter
     limiter = TokenBucketLimiter(capacity=1, refill_seconds=1.0)
     base = _time.monotonic()

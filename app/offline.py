@@ -12,7 +12,7 @@ short plain sentences, no emoji or ASCII art.
 import re
 import unicodedata
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, cast
 
 from app import data, tools
 
@@ -526,7 +526,7 @@ def _services_answer(
 ) -> str:
     """Answer nursing room / first aid / prayer room questions."""
     templates = _TEMPLATES[lang]
-    services = venue["services"]
+    services = cast(dict[str, str], venue["services"])
     for service, keywords in _SERVICE_KEYWORDS:
         if any(_contains(normalized, keyword) for keyword in keywords):
             return templates[service].format(

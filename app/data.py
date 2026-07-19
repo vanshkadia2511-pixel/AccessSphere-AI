@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any, TypedDict, cast
 
+
 # Define types for type checking
 class Gate(TypedDict):
     name: str
@@ -60,7 +61,10 @@ def get_venue(venue_id: str) -> Venue | None:
     return None
 
 def search_venues(q: str) -> list[Venue]:
-    """Search venues by name, commercialName, fifaName, city, or country (case-insensitive substring)."""
+    """Search venues by name, commercialName, fifaName, city, or country.
+
+    Performs a case-insensitive substring match.
+    """
     query = q.strip().lower()
     if not query:
         return []

@@ -17,16 +17,15 @@ Serves the accessible chat UI (static/) and a small JSON API. Security posture:
 import json
 import logging
 import os
-from dotenv import load_dotenv
-load_dotenv()
-
 import threading
 import time
+from base64 import b64decode
 from collections.abc import Awaitable, Callable, Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 
 import pydantic
+from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -43,6 +42,7 @@ from app.schemas import (
     VenueSummary,
 )
 
+load_dotenv()
 logger = logging.getLogger("accessmate")
 
 _STATIC_DIR = Path(__file__).resolve().parent.parent / "dist"
@@ -161,7 +161,7 @@ class RedisTokenBucketLimiter:
 
     def __init__(
         self,
-        client: "redis.Redis",
+        client: "redis.Redis[str]",
         capacity: int,
         refill_seconds: float,
         namespace: str = "accessmate:rl:",
@@ -389,13 +389,15 @@ async def vision_ocr(body: VisionOCRRequest) -> VisionOCRResponse:
     try:
         header, b64data = body.image_data_url.split(",", 1)
         mime_type = header.split(":")[1].split(";")[0]
-        import base64
-        image_bytes = base64.b64decode(b64data)
-    except Exception:
-        raise HTTPException(status_code=422, detail="Invalid image_data_url format.")
+        image_bytes = b64decode(b64data)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=422, detail="Invalid image_data_url format."
+        ) from exc
 
     try:
-        import google.genai.types as gtypes
+        import google.genai.types as gtypes  # noqa: PLC0415 — optional heavy dep
+
         client = assistant._get_client()
         response = client.models.generate_content(
             model=assistant.MODEL,
@@ -404,7 +406,7 @@ async def vision_ocr(body: VisionOCRRequest) -> VisionOCRResponse:
                 "You are an accessibility assistant at a FIFA World Cup 2026 stadium. "
                 "Read all text visible in this image, translate it to English if it is "
                 "in another language, and add a brief accessibility note (e.g. ramp access, "
-                "elevator, sensory zone). Be concise — 2-4 sentences maximum."
+                "elevator, sensory zone). Be concise — 2-4 sentences maximum.",
             ],
         )
         result_text = response.text or "No text detected in the image."
@@ -443,10 +445,13 @@ def fallback(path: str) -> FileResponse:
     local_file = _resolve_static_file(path)
     if local_file is not None:
         return FileResponse(str(local_file))
-        
+
     index_html = _STATIC_DIR / "index.html"
     if index_html.is_file():
         return FileResponse(str(index_html))
-        
-    raise HTTPException(status_code=404, detail="Static files not found. Make sure to build the frontend.")
+
+    raise HTTPException(
+        status_code=404,
+        detail="Static files not found. Make sure to build the frontend.",
+    )
 

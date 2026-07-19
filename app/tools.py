@@ -14,7 +14,7 @@ hour, marked ``"simulated": true``. No network access.
 import json
 import random
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from app import data
 
@@ -166,7 +166,7 @@ def find_accessible_services(venue_id: str, need: str = "general") -> JSONDict:
     need, note = _normalize_need(need)
     accessibility = venue["accessibility"]
     services: JSONDict = {
-        field: _copy_gates(venue) if field == "gates" else accessibility[field]
+        field: _copy_gates(venue) if field == "gates" else cast(JSONDict, accessibility)[field]
         for field in _NEED_FIELDS[need]
     }
     result: JSONDict = {
@@ -319,7 +319,9 @@ def plan_visit(
     services = venue["services"]
 
     gate_name = status["quiet_entrance"]
-    gate, congestion = _quiet_gate_and_congestion(accessibility, status, gate_name)
+    gate, congestion = _quiet_gate_and_congestion(
+        cast(JSONDict, accessibility), status, gate_name
+    )
     has_special_need = any(need != "general" for need in valid_needs)
 
     steps: list[JSONDict] = [
@@ -331,7 +333,7 @@ def plan_visit(
             "first_aid": services["first_aid"],
             "nursing_room": services["nursing_room"],
         },
-        *_need_support_steps(valid_needs, accessibility),
+        *_need_support_steps(valid_needs, cast(JSONDict, accessibility)),
     ]
     if status["elevator_outage"] is not None:
         steps.append(
